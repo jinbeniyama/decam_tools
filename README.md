@@ -4,8 +4,20 @@
 [developer mail](mailto:jinbeniyama@gmail.com)
 
 ## Overview
-
 Photometry of moving objects as well as reference stars could be done in this repository.
+
+## Structure
+```
+decam_tools/
+  decam_tools/
+    __init__.py
+    phot.py           # Photometry
+    util.py           # Useful functions
+  scripts/            # Executable scripts
+    sssb_snapshot     # Outputs V, EL, RA, and DEC
+  README.md           # This file
+
+```
 
 ## Dependencies
 
