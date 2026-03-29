@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Output RA, DEC, V, and EL of SSSB.
+"""
+from argparse import ArgumentParser as ap
+from astropy.time import Time
+from astroquery.jplhorizons import Horizons
+
+
+if __name__ == "__main__":
+    parser = ap(
+        description="Obtain and plot ephemeris from JPL HORIZONS")
+    parser.add_argument(
+        "asteroid", 
+        help="Target name like '2020 EO'")
+    parser.add_argument(
+        "--utc", type=str, default=None,
+        help="Starting time like '2020-05-18'")
+    parser.add_argument(
+        "--jd", type=str, default=None,
+        help="Starting time in JD")
+    parser.add_argument(
+        "--code", type=str, default="500", 
+        help="observatory code")
+    args = parser.parse_args()
+
+    asteroid = args.asteroid
+    code = args.code
+    
+    if args.utc:
+        # Convert to JD0
+        t = Time(str(args.utc), format='isot', scale='utc')
+        jd = t.jd
+    elif args.jd:
+        jd = args.jd
+    else:
+        assert False, "Put utc or jd"
+
+    obj = Horizons(id=asteroid, location=code, id_type="smallbody", epochs=jd)
+    eph = obj.ephemerides()
+    RA = eph["RA"].value[0]
+    DEC = eph["DEC"].value[0]
+    V = eph["V"].value[0]
+    
+    print()
+    print(f"  V = {V:.1f} mag")
+    if code == "500":
+        pass
+    else:
+        EL = eph["EL"].value[0]
+    print(f"  EL = {EL:.1f} deg from MPC code {code}")
+    print(f"  RA, DEC = {RA}, {DEC}")
+    print()
