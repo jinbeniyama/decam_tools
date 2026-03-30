@@ -48,6 +48,6 @@ if __name__ == "__main__":
         pass
     else:
         EL = eph["EL"].value[0]
-    print(f"  EL = {EL:.1f} deg from MPC code {code}")
+        print(f"  EL = {EL:.1f} deg from MPC code {code}")
     print(f"  RA, DEC = {RA}, {DEC}")
     print()
