@@ -5,6 +5,8 @@
 from argparse import ArgumentParser as ap
 from astropy.time import Time
 from astroquery.jplhorizons import Horizons
+from astropy.coordinates import Angle
+import astropy.units as u
 
 
 if __name__ == "__main__":
@@ -40,6 +42,8 @@ if __name__ == "__main__":
     eph = obj.ephemerides()
     RA = eph["RA"].value[0]
     DEC = eph["DEC"].value[0]
+    RA_hms = Angle(RA * u.deg).to_string(unit=u.hour, sep=':')
+    DEC_dms = Angle(DEC * u.deg).to_string(unit=u.deg, sep=':')
     V = eph["V"].value[0]
     
     print()
@@ -50,4 +54,5 @@ if __name__ == "__main__":
         EL = eph["EL"].value[0]
         print(f"  EL = {EL:.1f} deg from MPC code {code}")
     print(f"  RA, DEC = {RA}, {DEC}")
+    print(f"          = {RA_hms}, {DEC_dms}")
     print()
