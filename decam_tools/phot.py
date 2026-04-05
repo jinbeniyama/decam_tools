@@ -147,7 +147,7 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
 
     ax_img.imshow(img_cut, vmin=vmin, vmax=vmax, cmap=cmap)
     ax_img.scatter(
-        xc, yc, color="black", s=300, lw=3, marker="x", alpha=1, 
+        xc, yc, color="black", s=200, lw=2, marker="x", alpha=1, 
         label=f"{label} {mag_list[-1]:.2f} ± {magerr_list[-1]:.2f}")
     ax_img.grid(True, linestyle=':', alpha=0.6)
 
