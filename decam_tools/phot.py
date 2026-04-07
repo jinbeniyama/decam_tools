@@ -71,8 +71,10 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
     # Zeropoint
     magzpt = hdr0["MAGZPT"]
     t_exp = hdr0["EXPTIME"]
+    UTC0 = hdr0["UTC0"]
     print(f"  Exposure time: {t_exp} s")
     print(f"  MAGZPT = {magzpt:.2f} mag")
+    print(f"  UTC0 = {UTC0}")
 
     gaina = hdr0["GAINA"]
     gainb = hdr0["GAINB"]
@@ -252,6 +254,7 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
         "mag": mag_list,
         "magerr": magerr_list
     })
+    df["utc"] = UTC0
 
     return df
 
@@ -293,47 +296,150 @@ def plot_curve_of_growth(df, label="Target", show_flux=True):
     plt.show()
 
 
-def plot_color_curve_of_growth(df, label_prefix=""):
+def plot_color_curve_of_growth_mix(df, colors=["g-i", "g-z", "i-z"], label_prefix=""):
     """
-    Plot g-r color curve of growth.
+    Plot color growth curves based on radius, even if bands were observed on different dates.
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame with flux, fluxerr, mag, magerr, and radius
+        DataFrame containing 'date', 'radius', 'band', 'mag', and 'magerr'.
+    colors : list of str
+        List of color indices to plot (e.g., ["g-i", "r-z"]).
     label_prefix : str
-        Label in legend
+        Prefix for the legend labels.
     """
+    # 1. Collect unique dates per band for the legend
+    # Mapping each band to its observation date(s)
+    date_info = df.groupby("band")["date"].unique().to_dict()
 
-    df_mag = df.pivot_table(
-        index=["date", "radius"],
-        columns="band",
-        values="mag"
-    ).reset_index()
+    # 2. Create pivot tables
+    # Removing "date" from the index to align different bands by "radius" only.
+    # If multiple dates exist for the same band/radius, they are averaged.
+    pivot_mag = df.pivot_table(
+        index="radius", columns="band", values="mag", aggfunc="mean"
+    )
+    pivot_err = df.pivot_table(
+        index="radius", columns="band", values="magerr", aggfunc="mean"
+    )
 
-    df_err = df.pivot_table(
-        index=["date", "radius"],
-        columns="band",
-        values="magerr"
-    ).reset_index()
+    n_colors = len(colors)
+    fig, axes = plt.subplots(n_colors, 1, figsize=(7, 4 * n_colors), sharex=True, squeeze=False)
+    axes = axes.flatten()
 
-    df_mag["g-r"] = df_mag["g"] - df_mag["r"]
-    df_mag["g-r_err"] = np.sqrt(df_err["g"]**2 + df_err["r"]**2)
+    for i, color_str in enumerate(colors):
+        ax = axes[i]
+        try:
+            b1, b2 = color_str.split('-')
+        except ValueError:
+            print(f"Skipping invalid format: {color_str}")
+            continue
 
-    # --- plot ---
-    plt.figure(figsize=(6,5))
+        # Check if both required bands exist in the dataset
+        if b1 not in pivot_mag.columns or b2 not in pivot_mag.columns:
+            print(f"Skipping {color_str}: One or both bands not found in DataFrame.")
+            continue
 
-    for date, group in df_mag.groupby("date"):
-        plt.errorbar(
-            group["radius"],
-            group["g-r"],
-            yerr=group["g-r_err"],
+        # Calculate color index and propagated error
+        # Subtraction is performed row-wise based on aligned radius
+        color_val = pivot_mag[b1] - pivot_mag[b2]
+        color_err = np.sqrt(pivot_err[b1]**2 + pivot_err[b2]**2)
+
+        # Create a descriptive label (e.g., g(2019-02-14) - i(2019-02-27))
+        d1 = date_info[b1][0] if b1 in date_info else "N/A"
+        d2 = date_info[b2][0] if b2 in date_info else "N/A"
+        custom_label = f"{label_prefix}{b1}({d1}) - {b2}({d2})"
+
+        # Plotting the curve
+        ax.errorbar(
+            color_val.index,
+            color_val.values,
+            yerr=color_err.values,
             marker="o",
-            label=f"{label_prefix}{date}"
+            markersize=5,
+            capsize=3,
+            label=custom_label
         )
 
-    plt.xlabel("Aperture radius [pix]")
-    plt.ylabel("g-r")
-    plt.grid(True)
-    plt.legend()
+        ax.set_ylabel(f"{color_str} [mag]")
+        ax.grid(True, linestyle=':', alpha=0.6)
+        ax.legend(fontsize='small', loc='best')
+        ax.set_title(f"Color Growth Curve: {color_str}")
+
+    axes[-1].set_xlabel("Aperture radius [pix]")
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_color_curve_of_growth(df, colors=["g-i", "g-z", "i-z"], label_prefix=""):
+    """
+    Plot color growth curves for bands observed on the same date.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing 'date', 'radius', 'band', 'mag', and 'magerr'.
+    colors : list of str
+        List of color indices to plot (e.g., ["g-r", "g-i"]).
+    label_prefix : str
+        Prefix for the legend labels.
+    """
+    # 1. Create pivot tables indexed by date and radius
+    # This ensures that subtraction only occurs for data points sharing the exact same date
+    pivot_mag = df.pivot_table(
+        index=["date", "radius"], columns="band", values="mag"
+    )
+    pivot_err = df.pivot_table(
+        index=["date", "radius"], columns="band", values="magerr"
+    )
+
+    n_colors = len(colors)
+    fig, axes = plt.subplots(n_colors, 1, figsize=(7, 4 * n_colors), sharex=True, squeeze=False)
+    axes = axes.flatten()
+
+    for i, color_str in enumerate(colors):
+        ax = axes[i]
+        try:
+            b1, b2 = color_str.split('-')
+        except ValueError:
+            print(f"Skipping invalid format: {color_str}")
+            continue
+
+        # Check if both required bands are available in the pivoted data
+        if b1 not in pivot_mag.columns or b2 not in pivot_mag.columns:
+            print(f"Skipping {color_str}: Bands not found in dataset.")
+            continue
+
+        # Calculate color index and propagated error
+        # Resulting Series will still have (date, radius) as MultiIndex
+        color_val = pivot_mag[b1] - pivot_mag[b2]
+        color_err = np.sqrt(pivot_err[b1]**2 + pivot_err[b2]**2)
+
+        # Combine values and reset index for easier grouping by date during plotting
+        plot_df = color_val.to_frame(name="val").join(color_err.to_frame(name="err")).reset_index()
+
+        # Group by date to plot a separate curve for each observation night
+        for date, group in plot_df.groupby("date"):
+            # Drop NaN rows to ensure a clean curve (in case a date is missing one of the bands)
+            group = group.dropna(subset=["val"])
+            if group.empty:
+                continue
+                
+            ax.errorbar(
+                group["radius"],
+                group["val"],
+                yerr=group["err"],
+                marker="o",
+                markersize=5,
+                capsize=3,
+                label=f"{label_prefix}{date}"
+            )
+
+        ax.set_ylabel(f"{color_str} [mag]")
+        ax.grid(True, linestyle=':', alpha=0.6)
+        ax.legend(fontsize='small', loc='best')
+        ax.set_title(f"Same-Date Color Growth Curve: {color_str}")
+
+    axes[-1].set_xlabel("Aperture radius [pix]")
+    plt.tight_layout()
     plt.show()
