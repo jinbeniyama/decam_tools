@@ -80,16 +80,42 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
 
     img = src[0].data.byteswap().newbyteorder()
     x0, y0 = coo
+    half_wi = wi / 2.0
+
+    xmin, xmax = int(np.floor(x0 - half_wi)), int(np.floor(x0 + half_wi))
+    ymin, ymax = int(np.floor(y0 - half_wi)), int(np.floor(y0 + half_wi))
+
+    # Original size
+    ny, nx = img.shape
+
+    x_start, x_end = max(0, xmin), min(nx, xmax)
+    y_start, y_end = max(0, ymin), min(ny, ymax)
+
+    # Extract existing pixels
+    img_temp = img[y_start:y_end, x_start:x_end].astype(np.float32)
+
+    pad_y_before = max(0, -ymin)
+    pad_y_after  = max(0, ymax - ny)
+    pad_x_before = max(0, -xmin)
+    pad_x_after  = max(0, xmax - nx)
+
+
+    img_cut = np.pad(img_temp,
+                     ((pad_y_before, pad_y_after), (pad_x_before, pad_x_after)),
+                     mode='constant',
+                     constant_values=0)
+
+    xc, yc = half_wi, half_wi
+
+    sig = seeing_fwhm / 2.355  
+    x_new, y_new, flag = sep.winpos(img_cut, [xc], [yc], sig)
+
+    xc, yc = x_new[0], y_new[0]
 
     # Background noise
     bkg = sep.Background(img)
     bgerr_pix = bkg.globalrms
 
-    wi = wi / 2.0
-    xmin, xmax = int(x0 - wi - 1), int(x0 + wi)
-    ymin, ymax = int(y0 - wi - 1), int(y0 + wi)
-    img_cut = img[ymin:ymax, xmin:xmax].astype(np.float32)
-    xc, yc = wi, wi
 
     # --- lists for photometry ---
     flux_list, fluxerr_list = [], []
@@ -131,6 +157,7 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
     # right profile
     ax_right = fig.add_axes([0.82, 0.15, 0.1, 0.65], sharey=ax_img)
 
+
     sigma = 5
     _, vmin, vmax = sigmaclip(img_cut, sigma, sigma)
 
@@ -147,7 +174,7 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
 
     ax_img.imshow(img_cut, vmin=vmin, vmax=vmax, cmap=cmap)
     ax_img.scatter(
-        xc, yc, color="black", s=200, lw=2, marker="x", alpha=1, 
+        xc, yc, color="black", s=200, lw=2, marker="x", alpha=1,
         label=f"{label} {mag_list[-1]:.2f} ± {magerr_list[-1]:.2f}")
     ax_img.grid(True, linestyle=':', alpha=0.6)
 
@@ -176,7 +203,7 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
     col_indices = np.arange(int(xc)-1, int(xc)+2)
     col_profile = img_cut[:, col_indices].mean(axis=1)
     y = np.arange(img_cut.shape[0])
-    ax_right.plot(col_profile[::-1], y, color='gray')  # flip counts to match imshow
+    ax_right.plot(col_profile, y, color='gray')
     ax_right.set_xlabel("Counts")
     ax_right.tick_params(labelleft=False)
     ax_right.grid(True, linestyle=':', alpha=0.6)
