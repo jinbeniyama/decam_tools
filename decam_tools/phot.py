@@ -55,7 +55,7 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
 
     # Seeing FWHM
     seeing_fwhm = hdr0["FWHM"]
-    print(f"  Seeing FWHM = {seeing_fwhm:.1f} arcsec")
+    print(f"  Seeing FWHM = {seeing_fwhm:.1f} pix")
 
     if radius_list is not None:
         radii = radius_list
