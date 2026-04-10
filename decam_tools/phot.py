@@ -14,7 +14,7 @@ from matplotlib.patches import Circle
 
 
 def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
-              radius=None, radius_list=None, rad_factor=1.5,
+              radius=None, radius_list=None, rad_nominal=None, rad_factor=1.5,
               label=None, fltr=None, out=None):
     """
     Perform photometry at input coordinates, with top/right count profiles.
@@ -63,7 +63,7 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
         if radius is None:
             radius = seeing_fwhm * rad_factor
         radii = [radius]
-
+ 
     # Background annulus fixed outside max radius
     max_r = max(radii)
     bkgann = (max_r + ann_gap, max_r + ann_gap + ann_width)
@@ -145,19 +145,24 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
         fluxerr_list.append(fluxerr)
         mag_list.append(mag)
         magerr_list.append(magerr)
-
         print(f"  r={r:.2f}  flux={flux:.1f}  mag={mag:.3f}")
+
+        # Extract nominal value
+        if r == rad_nominal:
+            mag_nominal = mag
+            magerr_nominal = magerr
+            print("    -> This is nominal value in the figure")
 
     # --- Plot main image with top/right profiles ---
     fig = plt.figure(figsize=(6, 6))
     # main image axis
-    ax_img = fig.add_axes([0.13, 0.15, 0.65, 0.65])
+    ax_img = fig.add_axes([0.17, 0.15, 0.63, 0.63])
     ax_img.set_xlabel("x [pix]")
     ax_img.set_ylabel("y [pix]")
     # top profile
-    ax_top = fig.add_axes([0.13, 0.82, 0.65, 0.1], sharex=ax_img)
+    ax_top = fig.add_axes([0.17, 0.82, 0.63, 0.1], sharex=ax_img)
     # right profile
-    ax_right = fig.add_axes([0.82, 0.15, 0.1, 0.65], sharey=ax_img)
+    ax_right = fig.add_axes([0.82, 0.15, 0.1, 0.63], sharey=ax_img)
 
 
     sigma = 5
@@ -175,17 +180,29 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
         cmap = "Purples"
 
     ax_img.imshow(img_cut, vmin=vmin, vmax=vmax, cmap=cmap)
+    if rad_nominal is not None:
+        label=f"{label} {mag_nominal:.2f} ± {magerr_nominal:.2f}"
+    else:
+        label=f"{label}"
     ax_img.scatter(
-        xc, yc, color="black", s=200, lw=2, marker="x", alpha=1,
-        label=f"{label} {mag_list[-1]:.2f} ± {magerr_list[-1]:.2f}")
+        xc, yc, color="black", s=200, lw=2, marker="x", alpha=1, label=label)
     ax_img.grid(True, linestyle=':', alpha=0.6)
 
     # Draw apertures
     col_app = "black"
     col_ann = "black"
-    for r_plot in radii:
+
+
+    if rad_nominal is not None:
+        # Show only nominal radius
+        radii_plot = [rad_nominal]
+    else:
+        radii_plot = radii
+
+    for r_plot in radii_plot:
         ax_img.add_collection(PatchCollection([Circle((xc, yc), r_plot)],
                                               color=col_app, ls="dashed", lw=1, facecolor="None"))
+
     ax_img.add_collection(PatchCollection([Circle((xc, yc), max_r + ann_gap)],
                                           color=col_ann, ls="solid", lw=1, facecolor="None"))
     ax_img.add_collection(PatchCollection([Circle((xc, yc), max_r + ann_gap + ann_width)],
@@ -216,29 +233,30 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
     colors = ['black', 'black', 'black']  # main aperture, inner annulus, outer annulus
     linestyles = ['dashed', 'solid', 'solid']
 
+
     # Top profile (x-direction)
-    for r, c, ls in zip(radius_list, colors, linestyles):
+    for r, c, ls in zip(radii_plot, colors, linestyles):
         ax_top.vlines([xc - r, xc + r], ymin=row_profile.min(), ymax=row_profile.max(),
                     color=c, linestyle=ls, lw=1)
 
     # Annulus edges (outer)
-    ax_top.vlines([xc - (radius_list[-1] + ann_gap),
-                xc + (radius_list[-1] + ann_gap),
-                xc - (radius_list[-1] + ann_gap + ann_width),
-                xc + (radius_list[-1] + ann_gap + ann_width)],
+    ax_top.vlines([xc - (radii[-1] + ann_gap),
+                xc + (radii[-1] + ann_gap),
+                xc - (radii[-1] + ann_gap + ann_width),
+                xc + (radii[-1] + ann_gap + ann_width)],
                 ymin=row_profile.min(), ymax=row_profile.max(),
                 color=col_ann, linestyle='solid', lw=1)
 
     # Right profile (y-direction)
-    for r, c, ls in zip(radius_list, colors, linestyles):
+    for r, c, ls in zip(radii_plot, colors, linestyles):
         ax_right.hlines([yc - r, yc + r], xmin=col_profile.min(), xmax=col_profile.max(),
                         color=c, linestyle=ls, lw=1)
 
     # Annulus edges (outer)
-    ax_right.hlines([yc - (radius_list[-1] + ann_gap),
-                    yc + (radius_list[-1] + ann_gap),
-                    yc - (radius_list[-1] + ann_gap + ann_width),
-                    yc + (radius_list[-1] + ann_gap + ann_width)],
+    ax_right.hlines([yc - (radii[-1] + ann_gap),
+                    yc + (radii[-1] + ann_gap),
+                    yc - (radii[-1] + ann_gap + ann_width),
+                    yc + (radii[-1] + ann_gap + ann_width)],
                     xmin=col_profile.min(), xmax=col_profile.max(),
                     color=col_ann, linestyle='solid', lw=1)
     if out:
