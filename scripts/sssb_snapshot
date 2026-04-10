@@ -41,13 +41,15 @@ if __name__ == "__main__":
     obj = Horizons(id=asteroid, location=code, id_type="smallbody", epochs=jd)
     eph = obj.ephemerides()
     RA = eph["RA"].value[0]
+    alpha = eph["alpha"].value[0]
     DEC = eph["DEC"].value[0]
     RA_hms = Angle(RA * u.deg).to_string(unit=u.hour, sep=':')
     DEC_dms = Angle(DEC * u.deg).to_string(unit=u.deg, sep=':')
     V = eph["V"].value[0]
     
     print()
-    print(f"  V = {V:.1f} mag")
+    print(f"  V     = {V:.1f} mag")
+    print(f"  alpha = {alpha:.1f} deg")
     if code == "500":
         pass
     else:
