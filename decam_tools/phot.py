@@ -186,7 +186,6 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
         label=f"{label}"
     ax_img.scatter(
         xc, yc, color="black", s=200, lw=2, marker="x", alpha=1, label=label)
-    ax_img.grid(True, linestyle=':', alpha=0.6)
 
     # Draw apertures
     col_app = "black"
@@ -216,7 +215,6 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
     ax_top.plot(x, row_profile, color='gray')
     ax_top.set_ylabel("Counts")
     ax_top.tick_params(labelbottom=False)
-    ax_top.grid(True, linestyle=':', alpha=0.6)
 
     # --- Right profile (average of 3 columns centered on xc) ---
     col_indices = np.arange(int(xc)-1, int(xc)+2)
@@ -225,7 +223,6 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
     ax_right.plot(col_profile, y, color='gray')
     ax_right.set_xlabel("Counts")
     ax_right.tick_params(labelleft=False)
-    ax_right.grid(True, linestyle=':', alpha=0.6)
     ax_right.invert_yaxis()
 
 
