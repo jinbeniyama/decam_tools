@@ -151,11 +151,11 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
     # --- Plot main image with top/right profiles ---
     fig = plt.figure(figsize=(6, 6))
     # main image axis
-    ax_img = fig.add_axes([0.15, 0.15, 0.65, 0.65])
+    ax_img = fig.add_axes([0.13, 0.15, 0.65, 0.65])
     ax_img.set_xlabel("x [pix]")
     ax_img.set_ylabel("y [pix]")
     # top profile
-    ax_top = fig.add_axes([0.15, 0.82, 0.65, 0.1], sharex=ax_img)
+    ax_top = fig.add_axes([0.13, 0.82, 0.65, 0.1], sharex=ax_img)
     # right profile
     ax_right = fig.add_axes([0.82, 0.15, 0.1, 0.65], sharey=ax_img)
 
