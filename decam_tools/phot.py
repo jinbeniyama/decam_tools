@@ -11,6 +11,7 @@ import astropy.io.fits as fits
 import matplotlib.pyplot as plt
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Circle
+from matplotlib.patches import Rectangle
 
 
 def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
@@ -272,6 +273,124 @@ def phot_dcam_xy(f, coo, wi, ann_gap, ann_width,
     df["utc"] = UTC0
 
     return df
+
+
+
+def phot_dcam_xy_rect_local_bg(f, coo, wi, 
+                               a_list, b_list, 
+                               bg_offset=(0, 0), bg_dim=(5, 5),
+                               a_nominal=None, b_nominal=None,
+                               label=None, fltr=None, out=None):
+
+    src = fits.open(f)
+    img = src[0].data.byteswap().newbyteorder()
+    hdr = src[0].header
+    
+    magzpt = hdr.get("MAGZPT", 0.0)
+    t_exp = hdr.get("EXPTIME", 1.0)
+    gain = (hdr.get("GAINA", 1.0) + hdr.get("GAINB", 1.0)) / 2.0
+    seeing_fwhm = hdr.get("FWHM", 3.0)
+
+
+    x0, y0 = coo
+    half_wi = wi / 2.0
+    xmin, xmax = int(np.floor(x0 - half_wi)), int(np.floor(x0 + half_wi))
+    ymin, ymax = int(np.floor(y0 - half_wi)), int(np.floor(y0 + half_wi))
+    ny, nx = img.shape
+    img_temp = img[max(0, ymin):min(ny, ymax), max(0, xmin):min(nx, xmax)].astype(np.float32)
+    img_cut = np.pad(img_temp, ((max(0, -ymin), max(0, ymax - ny)), (max(0, -xmin), max(0, xmax - nx))), mode='constant', constant_values=0)
+
+
+    sig = seeing_fwhm / 2.355  
+    x_new, y_new, _ = sep.winpos(img_cut, [half_wi], [half_wi], sig)
+    xc, yc = x_new[0], y_new[0]
+
+
+    dx, dy = bg_offset
+    ba, bb = bg_dim
+    bg_xc, bg_yc = xc + dx, yc + dy
+    bg_x1, bg_x2 = int(np.round(bg_xc - ba)), int(np.round(bg_xc + ba))
+    bg_y1, bg_y2 = int(np.round(bg_yc - bb)), int(np.round(bg_yc + bb))
+    bg_area = img_cut[bg_y1:bg_y2, bg_x1:bg_x2]
+    local_bg_level = np.median(bg_area)
+    local_bg_rms = np.std(bg_area)
+
+    flux_list, fluxerr_list, mag_list, magerr_list = [], [], [], []
+    mag_nominal, magerr_nominal = np.nan, np.nan
+
+    for a, b in zip(a_list, b_list):
+        x1, x2 = int(np.round(xc - a)), int(np.round(xc + a))
+        y1, y2 = int(np.round(yc - b)), int(np.round(yc + b))
+        obj_area = img_cut[y1:y2, x1:x2]
+        npix = obj_area.size
+        net_flux = np.sum(obj_area) - (local_bg_level * npix)
+        fluxerr = np.sqrt(npix * (local_bg_rms**2) + max(0, net_flux) / gain)
+        
+        flux_sec = net_flux / t_exp
+        if flux_sec > 0:
+            mag = magzpt - 2.5 * np.log10(flux_sec)
+            magerr = 1.0857 * (fluxerr / net_flux)
+        else: mag, magerr = np.nan, np.nan
+        
+        flux_list.append(net_flux); fluxerr_list.append(fluxerr)
+        mag_list.append(mag); magerr_list.append(magerr)
+        
+        if a == a_nominal and b == b_nominal:
+            mag_nominal, magerr_nominal = mag, magerr
+
+
+    fig = plt.figure(figsize=(6, 6))
+    ax_img = fig.add_axes([0.17, 0.15, 0.63, 0.63])
+    ax_top = fig.add_axes([0.17, 0.82, 0.63, 0.1], sharex=ax_img)
+    ax_right = fig.add_axes([0.82, 0.15, 0.1, 0.63], sharey=ax_img)
+
+    cmap_dict = {"g": "Greens", "r": "Reds", "i": "PuRd", "z": "Purples"}
+    cmap = cmap_dict.get(fltr, "inferno")
+    _, vmin, vmax = sigmaclip(img_cut, 5, 5)
+
+    ax_img.imshow(img_cut, vmin=vmin, vmax=vmax, cmap=cmap, origin='lower')
+    if not np.isnan(mag_nominal):
+        label = f"{label} {mag_nominal:.2f} ± {magerr_nominal:.2f}"
+    ax_img.scatter(xc, yc, color='black', marker='x', s=200, lw=2, label=label)
+    ax_img.set_xlabel("x [pix]")
+    ax_img.set_ylabel("y [pix]")
+
+
+    a_plot = [a_nominal] if a_nominal else a_list
+    b_plot = [b_nominal] if b_nominal else b_list
+    for ap, bp in zip(a_plot, b_plot):
+        ax_img.add_patch(Rectangle((xc - ap, yc - bp), 2*ap, 2*bp, edgecolor='black', facecolor='none', ls='--', lw=1))
+
+    ax_img.add_patch(Rectangle((bg_xc - ba, bg_yc - bb), 2*ba, 2*bb, edgecolor='black', facecolor='none', lw=1, ls="solid"))
+    ax_img.legend(loc='upper left').get_frame().set_alpha(1)
+
+    x_line = np.arange(img_cut.shape[1])
+    prof_x = img_cut[int(yc)-1:int(yc)+2, :].mean(axis=0)
+    ax_top.plot(x_line, prof_x, color='gray', lw=1)
+    ax_top.set_ylabel("Counts")
+    ax_top.tick_params(labelbottom=False)
+    for ap in a_plot:
+        ax_top.vlines([xc - ap, xc + ap], prof_x.min(), prof_x.max(), color='black', ls='--', lw=1)
+    ax_top.vlines([bg_xc - ba, bg_xc + ba], prof_x.min(), prof_x.max(), color='black', ls='-', lw=1)
+
+    y_line = np.arange(img_cut.shape[0])
+    prof_y = img_cut[:, int(xc)-1:int(xc)+2].mean(axis=1)
+    ax_right.plot(prof_y, y_line, color='gray', lw=1)
+    ax_right.set_xlabel("Counts")
+    ax_right.tick_params(labelleft=False)
+    for bp in b_plot:
+        ax_right.hlines([yc - bp, yc + bp], prof_y.min(), prof_y.max(), color='black', ls='--', lw=1)
+    ax_right.hlines([bg_yc - bb, bg_yc + bb], prof_y.min(), prof_y.max(), color='black', ls='-', lw=1)
+
+    if out:
+        plt.savefig(out, bbox_inches='tight', dpi=150)
+        print(f"  [Output] Figure saved as {out}")
+
+    return pd.DataFrame({
+        "a_half": a_list, "b_half": b_list,
+        "flux": flux_list, "fluxerr": fluxerr_list,
+        "mag": mag_list, "magerr": magerr_list
+    })
 
 
 def plot_curve_of_growth(df, label="Target", show_flux=True):
