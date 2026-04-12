@@ -20,11 +20,9 @@ decam_tools/
 ```
 
 ## Set up
+Just run the command when you download this repo.
 ```
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e .
+pipx install --editable . --force
 ```
 
 ## Dependencies
