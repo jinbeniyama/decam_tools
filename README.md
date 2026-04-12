@@ -25,6 +25,14 @@ Just run the command when you download this repo.
 pipx install --editable . --force
 ```
 
+## Command
+1. Extract chip of interest
+```
+# Extract `S14` of `c4d_160111_064029_opi_r_v1.fits.fz`, and save as `extracted.fits`
+extract_chip_decam c4d_160111_064029_opi_r_v1.fits.fz S14 extracted.fits --overwrite
+```
+
+
 ## Dependencies
 
 This library is depending on `NumPy`, `SciPy`, `SEP`, `Astropy` 
