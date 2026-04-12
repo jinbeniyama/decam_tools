@@ -16,8 +16,9 @@ decam_tools/
   scripts/            # Executable scripts
     sssb_snapshot     # Outputs V, EL, RA, and DEC
   README.md           # This file
-
+  pyproject.toml      # To install 
 ```
+
 ## Set up
 ```
 python3 -m venv .venv
