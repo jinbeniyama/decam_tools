@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+from argparse import ArgumentParser as ap
+from decam_tools.util import extract_chip
+
+
+def main():
+    parser = ap(
+        description="Extract a specific chip from DECam FITS.")
+    parser.add_argument(
+        "f_r", help="Input FITS file")
+    parser.add_argument(
+        "chip", help="Chip name (e.g., S14)")
+    parser.add_argument(
+        "f_r_out", help="Output FITS file")
+    parser.add_argument(
+        "-w", "--overwrite", action="store_true", help="Overwrite if exists")
+    args = parser.parse_args()
+
+    extract_chip(args.f_r, args.chip, args.f_r_out, overwrite=args.overwrite)
+
+if __name__ == "__main__":
+    main()
