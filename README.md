@@ -26,6 +26,14 @@ pipx install --editable . --force
 ```
 
 ## Command
+0. Find chip of interest by eye
+You can check and find a chip of interest (e.g., with a minor planet) with `ds9`.
+The following command tells you the coordinate, V mag of a minor body.
+```
+# Itokawa on May 18, 1996
+sssb_snapshot Itokawa --utc 1996-05-18
+```
+
 1. Extract chip of interest
 ```
 # Extract `S14` of `c4d_160111_064029_opi_r_v1.fits.fz`, and save as `extracted.fits`
