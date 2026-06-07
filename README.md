@@ -20,9 +20,14 @@ decam_tools/
 ```
 
 ## Set up
-Just run the command when you download this repo.
+Just run the command when you download this repo to run some commands.
 ```
 pipx install --editable . --force
+```
+
+Or download to use various functions.
+```
+pipx install (path to this repo)
 ```
 
 ## Command
