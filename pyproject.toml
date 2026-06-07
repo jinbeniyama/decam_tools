@@ -12,6 +12,7 @@ dependencies = [
     "astroquery",
     "matplotlib",
     "scipy",
+    "sep",
 ]
 
 [tool.setuptools]
